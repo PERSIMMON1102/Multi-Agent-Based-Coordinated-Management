@@ -1,0 +1,124 @@
+package com.medical.agent.rules.ckd;
+
+import com.medical.agent.common.fact.PatientHealthFact;
+import com.medical.agent.common.enums.RiskLevel;
+import com.medical.agent.common.enums.DiseaseType;
+
+rule "CKD-001: 肌酐正常"
+    no-loop true
+    salience 100
+    when
+        $f : PatientHealthFact(
+            creatinine != null, creatinine >= 44, creatinine <= 104,
+            urineProtein != null, urineProtein == "NEGATIVE",
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.CKD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.CKD);
+        $f.setRiskLevel(RiskLevel.LOW);
+        $f.setRiskScore(1.0);
+        $f.setAssessmentDetail("肌酐正常（44-104μmol/L）且尿蛋白阴性，肾功能正常。");
+        $f.addRecommendation("定期监测肌酐和尿蛋白，每年复查");
+        $f.addRecommendation("控制血压、血糖等基础疾病");
+        update($f);
+end
+
+rule "CKD-002: 肌酐轻度升高"
+    no-loop true
+    salience 90
+    when
+        $f : PatientHealthFact(
+            creatinine != null, creatinine > 104, creatinine <= 177,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.CKD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.CKD);
+        $f.setRiskLevel(RiskLevel.MEDIUM);
+        $f.setRiskScore(2.0);
+        $f.setAssessmentDetail("肌酐轻度升高（104-177μmol/L），肾功能下降。");
+        $f.addRecommendation("转诊肾内科，计算eGFR评估CKD分期");
+        $f.addRecommendation("每3个月监测肌酐、电解质、血红蛋白");
+        $f.addRecommendation("严格控制血压<130/80mmHg");
+        update($f);
+end
+
+rule "CKD-003: 肌酐明显升高"
+    no-loop true
+    salience 80
+    when
+        $f : PatientHealthFact(
+            creatinine != null, creatinine > 177, creatinine <= 442,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.CKD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.CKD);
+        $f.setRiskLevel(RiskLevel.HIGH);
+        $f.setRiskScore(3.0);
+        $f.setAssessmentDetail("肌酐明显升高（177-442μmol/L），肾功能中重度下降。");
+        $f.addRecommendation("肾内科专科管理，评估透析准备");
+        $f.addRecommendation("低蛋白饮食（0.6-0.8g/kg/d）");
+        $f.addRecommendation("每月监测肾功能");
+        update($f);
+end
+
+rule "CKD-004: 肌酐严重升高（肾衰竭）"
+    no-loop true
+    salience 70
+    when
+        $f : PatientHealthFact(
+            creatinine != null, creatinine > 442,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.CKD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.CKD);
+        $f.setRiskLevel(RiskLevel.CRITICAL);
+        $f.setRiskScore(4.0);
+        $f.setAssessmentDetail("肌酐严重升高（>442μmol/L），肾衰竭。");
+        $f.addRecommendation("紧急启动透析治疗或肾移植评估");
+        $f.addRecommendation("每周监测肾功能、电解质");
+        update($f);
+end
+
+rule "CKD-005: 尿蛋白阳性加重"
+    no-loop true
+    salience 65
+    when
+        $f : PatientHealthFact(
+            urineProtein != null, (urineProtein == "2+" || urineProtein == "3+"),
+            assessedDiseaseType == DiseaseType.CKD
+        )
+    then
+        $f.addRecommendation("尿蛋白2+/3+：大量蛋白尿，肾损害严重，强化ACEI/ARB治疗");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end
+
+rule "CKD-006: 肾性贫血"
+    no-loop true
+    salience 60
+    when
+        $f : PatientHealthFact(
+            hemoglobin != null, hemoglobin < 110,
+            creatinine != null, creatinine > 104,
+            assessedDiseaseType == DiseaseType.CKD
+        )
+    then
+        $f.addRecommendation("血红蛋白<110g/L + 肌酐升高：肾性贫血，评估EPO治疗和铁剂补充");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end
+
+rule "CKD-007: 高钾血症风险"
+    no-loop true
+    salience 55
+    when
+        $f : PatientHealthFact(
+            potassium != null, potassium > 5.5,
+            creatinine != null, creatinine > 104,
+            assessedDiseaseType == DiseaseType.CKD
+        )
+    then
+        $f.addRecommendation("血钾>5.5mmol/L + 肾功能不全：高钾血症风险，限钾饮食，调整用药");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end

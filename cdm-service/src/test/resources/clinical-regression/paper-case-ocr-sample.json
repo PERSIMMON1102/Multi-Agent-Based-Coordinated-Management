@@ -1,0 +1,19 @@
+{
+  "rawText": "患者张三，男，58岁。主诉：胸闷伴反酸1周。现病史：近1周反复胸闷反酸。体格检查：血压148/92mmHg，心率78次/分。初步诊断：胃食管反流病。",
+  "patientName": "张三",
+  "gender": "男",
+  "age": 58,
+  "chiefComplaint": "胸闷伴反酸1周",
+  "presentIllness": "近1周反复胸闷反酸",
+  "physicalExam": "血压148/92mmHg，心率78次/分",
+  "preliminaryDiagnosis": "胃食管反流病",
+  "structuredMetrics": {
+    "height": 172.0,
+    "weight": 70.5,
+    "systolicBp": 148,
+    "diastolicBp": 92,
+    "restingHeartRate": 78,
+    "fastingGlucose": 6.1
+  },
+  "rawJson": "{\"fixture\":\"paper-case-ocr\",\"version\":1}"
+}

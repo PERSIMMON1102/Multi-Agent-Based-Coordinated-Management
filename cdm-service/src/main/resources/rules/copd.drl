@@ -1,0 +1,103 @@
+package com.medical.agent.rules.copd;
+
+import com.medical.agent.common.fact.PatientHealthFact;
+import com.medical.agent.common.enums.RiskLevel;
+import com.medical.agent.common.enums.DiseaseType;
+
+rule "COPD-001: 感染指标正常"
+    no-loop true
+    salience 100
+    when
+        $f : PatientHealthFact(
+            wbc != null, wbc >= 4, wbc <= 10,
+            neutrophilPct != null, neutrophilPct >= 40, neutrophilPct <= 75,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.COPD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.COPD);
+        $f.setRiskLevel(RiskLevel.LOW);
+        $f.setRiskScore(1.0);
+        $f.setAssessmentDetail("COPD稳定期：白细胞和中性粒细胞比例正常，无明显感染征象。");
+        $f.addRecommendation("维持当前吸入治疗方案");
+        $f.addRecommendation("每年复查肺功能（需专科检查）");
+        $f.addRecommendation("接种流感和肺炎球菌疫苗");
+        update($f);
+end
+
+rule "COPD-002: 白细胞轻度升高"
+    no-loop true
+    salience 90
+    when
+        $f : PatientHealthFact(
+            wbc != null, wbc > 10, wbc <= 15,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.COPD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.COPD);
+        $f.setRiskLevel(RiskLevel.MEDIUM);
+        $f.setRiskScore(2.0);
+        $f.setAssessmentDetail("COPD合并白细胞轻度升高（10-15×10^9/L），可能存在感染。");
+        $f.addRecommendation("注意COPD急性加重征兆（痰量增多、痰色变黄、呼吸困难加重）");
+        $f.addRecommendation("必要时经验性抗感染治疗");
+        update($f);
+end
+
+rule "COPD-003: 白细胞明显升高"
+    no-loop true
+    salience 80
+    when
+        $f : PatientHealthFact(
+            wbc != null, wbc > 15,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.COPD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.COPD);
+        $f.setRiskLevel(RiskLevel.HIGH);
+        $f.setRiskScore(3.0);
+        $f.setAssessmentDetail("COPD合并白细胞明显升高（>15×10^9/L），高度怀疑肺部感染/AECOPD。");
+        $f.addRecommendation("转诊呼吸科，完善痰培养和胸部CT");
+        $f.addRecommendation("启动抗感染治疗+短期全身激素");
+        update($f);
+end
+
+rule "COPD-004: 中性粒细胞比例升高"
+    no-loop true
+    salience 75
+    when
+        $f : PatientHealthFact(
+            neutrophilPct != null, neutrophilPct > 75,
+            assessedDiseaseType == DiseaseType.COPD
+        )
+    then
+        $f.addRecommendation("中性粒细胞>75%：细菌感染可能性大，建议抗感染治疗");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end
+
+rule "COPD-005: COPD合并贫血"
+    no-loop true
+    salience 65
+    when
+        $f : PatientHealthFact(
+            hemoglobin != null, hemoglobin < 120,
+            assessedDiseaseType == DiseaseType.COPD
+        )
+    then
+        $f.addRecommendation("血红蛋白<120g/L：COPD合并贫血影响氧输送能力，需纠正贫血");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end
+
+rule "COPD-006: COPD合并肝功能异常"
+    no-loop true
+    salience 60
+    when
+        $f : PatientHealthFact(
+            alt != null, alt > 40,
+            assessedDiseaseType == DiseaseType.COPD
+        )
+    then
+        $f.addRecommendation("ALT升高：注意COPD用药（茶碱类等）的肝毒性，调整方案");
+        $f.setRiskScore($f.getRiskScore() + 0.2);
+        update($f);
+end

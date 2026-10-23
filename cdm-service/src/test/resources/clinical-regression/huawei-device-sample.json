@@ -1,0 +1,28 @@
+{
+  "device_id": "HW-BP-REG-0001",
+  "device_type": "blood_pressure_monitor",
+  "services": [
+    {
+      "service_id": "health",
+      "service_type": "blood_pressure_monitor",
+      "event_time": "2026-05-28T08:30:00Z",
+      "properties": {
+        "systolic_bp": 126,
+        "diastolic_bp": 80,
+        "heart_rate": 72,
+        "weight": 69.8,
+        "height": 172
+      }
+    },
+    {
+      "service_id": "health",
+      "service_type": "blood_pressure_monitor",
+      "event_time": "2026-05-28T20:10:00Z",
+      "properties": {
+        "systolic_bp": 134,
+        "diastolic_bp": 86,
+        "heart_rate": 77
+      }
+    }
+  ]
+}

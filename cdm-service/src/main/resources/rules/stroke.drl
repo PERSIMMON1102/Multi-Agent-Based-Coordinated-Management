@@ -1,0 +1,124 @@
+package com.medical.agent.rules.stroke;
+
+import com.medical.agent.common.fact.PatientHealthFact;
+import com.medical.agent.common.enums.RiskLevel;
+import com.medical.agent.common.enums.DiseaseType;
+
+rule "STROKE-001: 低复发风险"
+    no-loop true
+    salience 100
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, systolicBp < 140,
+            ldlCholesterol != null, ldlCholesterol < 2.6,
+            fastingGlucose != null, fastingGlucose < 6.1,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.STROKE
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.STROKE);
+        $f.setRiskLevel(RiskLevel.LOW);
+        $f.setRiskScore(1.0);
+        $f.setAssessmentDetail("脑卒中二级预防达标：血压<140mmHg，LDL-C<2.6mmol/L，血糖正常。");
+        $f.addRecommendation("维持当前二级预防方案（抗血小板+他汀）");
+        $f.addRecommendation("每6个月门诊随访，复查血脂血糖");
+        update($f);
+end
+
+rule "STROKE-002: 中风险 - 血压或血脂未达标"
+    no-loop true
+    salience 90
+    when
+        $f : PatientHealthFact(
+            systolicBp != null,
+            (systolicBp >= 140 || (ldlCholesterol != null && ldlCholesterol >= 2.6 && ldlCholesterol < 3.4)),
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.STROKE
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.STROKE);
+        $f.setRiskLevel(RiskLevel.MEDIUM);
+        $f.setRiskScore(2.0);
+        $f.setAssessmentDetail("脑卒中复发中风险：血压或LDL-C未达标。");
+        $f.addRecommendation("血压控制目标<140/90mmHg，强化降压方案");
+        $f.addRecommendation("LDL-C控制目标<2.6mmol/L");
+        $f.addRecommendation("每3个月复查");
+        update($f);
+end
+
+rule "STROKE-003: 高风险 - 多重因素未控制"
+    no-loop true
+    salience 80
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, systolicBp >= 160,
+            ldlCholesterol != null, ldlCholesterol >= 3.4,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.STROKE
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.STROKE);
+        $f.setRiskLevel(RiskLevel.HIGH);
+        $f.setRiskScore(3.0);
+        $f.setAssessmentDetail("脑卒中复发高风险：血压≥160mmHg且LDL-C≥3.4mmol/L，多重危险因素！");
+        $f.addRecommendation("紧急调整降压降脂方案");
+        $f.addRecommendation("每月监测血压血脂");
+        update($f);
+end
+
+rule "STROKE-004: 危急 - 血压极高"
+    no-loop true
+    salience 70
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, systolicBp >= 180,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.STROKE
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.STROKE);
+        $f.setRiskLevel(RiskLevel.CRITICAL);
+        $f.setRiskScore(4.0);
+        $f.setAssessmentDetail("脑卒中患者血压≥180mmHg，卒中再发高危！");
+        $f.addRecommendation("立即就医，紧急降压处理");
+        $f.addRecommendation("排除出血性卒中再发");
+        update($f);
+end
+
+rule "STROKE-005: 脑卒中合并高血糖"
+    no-loop true
+    salience 65
+    when
+        $f : PatientHealthFact(
+            fastingGlucose != null, fastingGlucose >= 7.0,
+            assessedDiseaseType == DiseaseType.STROKE
+        )
+    then
+        $f.addRecommendation("合并高血糖（空腹≥7.0mmol/L）：糖尿病是卒中复发独立危险因素，强化降糖");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end
+
+rule "STROKE-006: 脑卒中合并尿酸升高"
+    no-loop true
+    salience 60
+    when
+        $f : PatientHealthFact(
+            uricAcid != null, uricAcid > 420,
+            assessedDiseaseType == DiseaseType.STROKE
+        )
+    then
+        $f.addRecommendation("尿酸>420μmol/L：高尿酸血症增加卒中复发风险，控制饮食并评估降尿酸治疗");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end
+
+rule "STROKE-007: 脑卒中合并凝血异常"
+    no-loop true
+    salience 55
+    when
+        $f : PatientHealthFact(
+            platelet != null, platelet < 100,
+            assessedDiseaseType == DiseaseType.STROKE
+        )
+    then
+        $f.addRecommendation("血小板<100×10^9/L：凝血功能异常，评估抗血小板药物安全性");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end

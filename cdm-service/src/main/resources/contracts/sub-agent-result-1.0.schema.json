@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "classpath:/contracts/sub-agent-result-1.0.schema.json",
+  "title": "SubAgentResult Contract",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "type",
+    "contractSchema",
+    "contractVersion",
+    "summary",
+    "completed"
+  ],
+  "properties": {
+    "type": {
+      "const": "final"
+    },
+    "contractSchema": {
+      "type": "string",
+      "const": "sub-agent-result"
+    },
+    "contractVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "completed": {
+      "type": "boolean"
+    },
+    "requestedSupportAgents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "suggestedHandoffAgent": {
+      "type": "string"
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "suggestedNextAction": {
+      "type": "string"
+    },
+    "failureCategory": {
+      "type": "string",
+      "enum": [
+        "context_gap",
+        "evidence_gap",
+        "risk_reassessment",
+        "tool_or_runtime_failure",
+        "missing_agent",
+        "general_failure"
+      ]
+    },
+    "missingCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "handoffPayload": {
+      "type": "object"
+    },
+    "nextRequiredCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "completed": {
+            "const": false
+          }
+        },
+        "required": [
+          "completed"
+        ]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "required": [
+              "requestedSupportAgents"
+            ],
+            "properties": {
+              "requestedSupportAgents": {
+                "minItems": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "suggestedHandoffAgent"
+            ],
+            "properties": {
+              "suggestedHandoffAgent": {
+                "minLength": 1
+              }
+            }
+          },
+          {
+            "required": [
+              "nextRequiredCapabilities"
+            ],
+            "properties": {
+              "nextRequiredCapabilities": {
+                "minItems": 1
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

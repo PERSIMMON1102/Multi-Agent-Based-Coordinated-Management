@@ -1,0 +1,225 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: cdm-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ChangeMySqlRootPassword123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-cdm_db}
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - cdm-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:6.0
+    container_name: cdm-mongodb
+    restart: unless-stopped
+    volumes:
+      - ./data/mongo:/data/db
+    networks:
+      - cdm-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.10.1
+    container_name: cdm-qdrant
+    restart: unless-stopped
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    networks:
+      - cdm-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: cdm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - cdm-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cdm-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cdm-backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-cdm_db}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ChangeMySqlRootPassword123}
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/cdm_agent_logs
+      SPRING_CACHE_TYPE: ${SPRING_CACHE_TYPE:-redis}
+      SPRING_REDIS_HOST: ${SPRING_REDIS_HOST:-redis}
+      SPRING_REDIS_PORT: ${SPRING_REDIS_PORT:-6379}
+      INITIAL_ADMIN_ENABLED: ${INITIAL_ADMIN_ENABLED:-true}
+      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-System Administrator}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-ChangeThisJwtSecretToAtLeast32CharsForProduction123456}
+      AUTH_PATIENT_REGISTRATION_ENABLED: ${AUTH_PATIENT_REGISTRATION_ENABLED:-true}
+      EMBEDDING_API_ENABLED: ${EMBEDDING_API_ENABLED:-true}
+      EMBEDDING_API_BASE_URL: ${EMBEDDING_API_BASE_URL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_API_MODEL: ${EMBEDDING_API_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1536}
+      RERANK_API_ENABLED: ${RERANK_API_ENABLED:-false}
+      RERANK_API_BASE_URL: ${RERANK_API_BASE_URL:-}
+      RERANK_API_KEY: ${RERANK_API_KEY:-}
+      RERANK_API_MODEL: ${RERANK_API_MODEL:-qwen3-rerank}
+      VECTOR_ENABLED: ${VECTOR_ENABLED:-true}
+      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      LLM_API_BASE_URL: ${LLM_API_BASE_URL:-https://api.edgefn.net/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_API_MODEL: ${LLM_API_MODEL:-DeepSeek-V3.2}
+      ALIYUN_OSS_ENDPOINT: ${ALIYUN_OSS_ENDPOINT:-https://oss-cn-beijing.aliyuncs.com}
+      ALIYUN_OSS_ACCESS_KEY_ID: ${ALIYUN_OSS_ACCESS_KEY_ID:-}
+      ALIYUN_OSS_ACCESS_KEY_SECRET: ${ALIYUN_OSS_ACCESS_KEY_SECRET:-}
+      ALIYUN_OSS_BUCKET_NAME: ${ALIYUN_OSS_BUCKET_NAME:-}
+      ALIYUN_OSS_URL_PREFIX: ${ALIYUN_OSS_URL_PREFIX:-}
+      MEDPLUM_ENABLED: ${MEDPLUM_ENABLED:-false}
+      MEDPLUM_BASE_URL: ${MEDPLUM_BASE_URL:-https://api.medplum.com/}
+      MEDPLUM_CLIENT_ID: ${MEDPLUM_CLIENT_ID:-}
+      MEDPLUM_CLIENT_SECRET: ${MEDPLUM_CLIENT_SECRET:-}
+      MEDPLUM_PROJECT_ID: ${MEDPLUM_PROJECT_ID:-}
+      MEDPLUM_ACCESS_TOKEN: ${MEDPLUM_ACCESS_TOKEN:-}
+      MEDPLUM_NODE_COMMAND: ${MEDPLUM_NODE_COMMAND:-node}
+      MEDPLUM_BRIDGE_SCRIPT_PATH: ${MEDPLUM_BRIDGE_SCRIPT_PATH:-/app/third_party/medplum-mcp/cdm-bridge.mjs}
+      MEDPLUM_MCP_BASE_URL: ${MEDPLUM_MCP_BASE_URL:-http://cdm-medplum-mcp:8811}
+      MEDPLUM_TIMEOUT_SECONDS: ${MEDPLUM_TIMEOUT_SECONDS:-45}
+      TZ: Asia/Shanghai
+      JAVA_OPTS: -Xms512m -Xmx1024m -Duser.timezone=Asia/Shanghai
+    volumes:
+      - ./data/uploads:/app/uploads
+      - ./third_party/medplum-mcp:/app/third_party/medplum-mcp:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/auth/config >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cdm-network
+
+  cdm-medplum-mcp:
+    build:
+      context: ./third_party/medplum-mcp
+      dockerfile: Dockerfile
+    container_name: cdm-medplum-mcp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8811:8811"
+    environment:
+      MCP_TRANSPORT: http
+      HOST: 0.0.0.0
+      PORT: 8811
+      MCP_HTTP_PATH: /mcp
+      CDM_BACKEND_BASE_URL: http://cdm-backend:8080
+      MEDPLUM_ENABLED: ${MEDPLUM_ENABLED:-false}
+      MEDPLUM_BASE_URL: ${MEDPLUM_BASE_URL:-https://api.medplum.com/}
+      MEDPLUM_CLIENT_ID: ${MEDPLUM_CLIENT_ID:-}
+      MEDPLUM_CLIENT_SECRET: ${MEDPLUM_CLIENT_SECRET:-}
+      MEDPLUM_PROJECT_ID: ${MEDPLUM_PROJECT_ID:-}
+      MEDPLUM_ACCESS_TOKEN: ${MEDPLUM_ACCESS_TOKEN:-}
+      MEDPLUM_TIMEOUT_SECONDS: ${MEDPLUM_TIMEOUT_SECONDS:-45}
+    depends_on:
+      cdm-backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8811/health >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cdm-network
+
+  cdm-medical-json-importer:
+    image: python:3.11-alpine
+    container_name: cdm-medical-json-importer
+    restart: "no"
+    working_dir: /workspace
+    environment:
+      MEDICAL_JSON_AUTO_IMPORT_ENABLED: ${MEDICAL_JSON_AUTO_IMPORT_ENABLED:-true}
+      MEDICAL_JSON_AUTO_IMPORT_API_BASE_URL: http://cdm-backend:8080
+      MEDICAL_JSON_AUTO_IMPORT_DATASET: /workspace/medical.json
+      MEDICAL_JSON_AUTO_IMPORT_OUTPUT_ROOT: /tmp/medical_json_import
+      MEDICAL_JSON_AUTO_IMPORT_INCLUDE_GENERAL: ${MEDICAL_JSON_AUTO_IMPORT_INCLUDE_GENERAL:-false}
+      MEDICAL_JSON_AUTO_IMPORT_DISEASES: ${MEDICAL_JSON_AUTO_IMPORT_DISEASES:-}
+      MEDICAL_JSON_AUTO_IMPORT_MAX_RECORDS: ${MEDICAL_JSON_AUTO_IMPORT_MAX_RECORDS:-0}
+      MEDICAL_JSON_AUTO_IMPORT_KEYWORDS: ${MEDICAL_JSON_AUTO_IMPORT_KEYWORDS:-}
+      MEDICAL_JSON_AUTO_IMPORT_KEYWORD_FIELD: ${MEDICAL_JSON_AUTO_IMPORT_KEYWORD_FIELD:-name}
+      MEDICAL_JSON_AUTO_IMPORT_EXCLUDE_KEYWORDS: ${MEDICAL_JSON_AUTO_IMPORT_EXCLUDE_KEYWORDS:-}
+      MEDICAL_JSON_AUTO_IMPORT_EXCLUDE_KEYWORD_FIELD: ${MEDICAL_JSON_AUTO_IMPORT_EXCLUDE_KEYWORD_FIELD:-name}
+      MEDICAL_JSON_AUTO_IMPORT_FORCE_DISEASE: ${MEDICAL_JSON_AUTO_IMPORT_FORCE_DISEASE:-}
+      MEDICAL_JSON_AUTO_IMPORT_PUBLISHED_AT: ${MEDICAL_JSON_AUTO_IMPORT_PUBLISHED_AT:-}
+      MEDICAL_JSON_AUTO_IMPORT_VERSION_TAG: ${MEDICAL_JSON_AUTO_IMPORT_VERSION_TAG:-medical-json}
+      MEDICAL_JSON_AUTO_IMPORT_WAIT_TIMEOUT: ${MEDICAL_JSON_AUTO_IMPORT_WAIT_TIMEOUT:-600}
+      MEDICAL_JSON_AUTO_IMPORT_WAIT_INTERVAL: ${MEDICAL_JSON_AUTO_IMPORT_WAIT_INTERVAL:-5}
+      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      MEDICAL_JSON_AUTO_IMPORT_USERNAME: ${MEDICAL_JSON_AUTO_IMPORT_USERNAME:-}
+      MEDICAL_JSON_AUTO_IMPORT_PASSWORD: ${MEDICAL_JSON_AUTO_IMPORT_PASSWORD:-}
+      MEDICAL_JSON_AUTO_IMPORT_AUTH_ROLE: ${MEDICAL_JSON_AUTO_IMPORT_AUTH_ROLE:-admin}
+    command: ["python", "/workspace/scripts/run_medical_json_auto_import.py"]
+    volumes:
+      - .:/workspace:ro
+    depends_on:
+      cdm-backend:
+        condition: service_started
+    networks:
+      - cdm-network
+
+  cdm-frontend:
+    build:
+      context: ./cdm-frontend
+      dockerfile: Dockerfile
+    container_name: cdm-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:80"
+    depends_on:
+      cdm-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80 >/dev/null 2>&1 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cdm-network
+
+networks:
+  cdm-network:
+    driver: bridge
+
+volumes:
+  mysql_data:

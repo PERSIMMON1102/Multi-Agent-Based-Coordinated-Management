@@ -1,0 +1,37 @@
+[
+  {
+    "id": "diabetes-diet-01",
+    "scenario": "饮食管理",
+    "question": "2型糖尿病患者日常主食控制和加餐安排有哪些关键注意事项？",
+    "focus": "控糖饮食、主食分配、加餐原则",
+    "expectedKeywords": ["主食", "定时定量", "升糖", "加餐", "血糖"]
+  },
+  {
+    "id": "diabetes-exercise-01",
+    "scenario": "运动指导",
+    "question": "糖尿病患者进行有氧运动时，频次、时长以及低血糖预防应如何安排？",
+    "focus": "有氧运动、频次时长、低血糖预防",
+    "expectedKeywords": ["运动", "每周", "低血糖", "监测", "有氧"]
+  },
+  {
+    "id": "hypertension-home-bp-01",
+    "scenario": "居家监测",
+    "question": "高血压患者在家测量血压时，测量时间、姿势和记录方法有哪些规范？",
+    "focus": "家庭血压监测、测量规范、记录",
+    "expectedKeywords": ["血压", "晨起", "坐位", "记录", "监测"]
+  },
+  {
+    "id": "hypertension-medication-01",
+    "scenario": "用药依从性",
+    "question": "高血压长期服药患者如果血压短期恢复正常，是否可以自行停药？",
+    "focus": "长期服药、依从性、停药风险",
+    "expectedKeywords": ["服药", "停药", "依从性", "血压", "风险"]
+  },
+  {
+    "id": "followup-warning-01",
+    "scenario": "复诊提醒",
+    "question": "慢病患者出现哪些情况时需要提前复诊或及时联系医生？",
+    "focus": "预警症状、提前复诊、联系医生",
+    "expectedKeywords": ["复诊", "症状", "医生", "异常", "及时"]
+  }
+]

@@ -1,0 +1,146 @@
+package com.medical.agent.rules.hypertension;
+
+import com.medical.agent.common.fact.PatientHealthFact;
+import com.medical.agent.common.enums.RiskLevel;
+import com.medical.agent.common.enums.DiseaseType;
+
+rule "HTN-001: 正常血压"
+    no-loop true
+    salience 100
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, diastolicBp != null,
+            systolicBp < 120, diastolicBp < 80,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.HYPERTENSION
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.HYPERTENSION);
+        $f.setRiskLevel(RiskLevel.LOW);
+        $f.setRiskScore(1.0);
+        $f.setAssessmentDetail("血压正常（收缩压<120mmHg，舒张压<80mmHg）。");
+        $f.addRecommendation("维持健康生活方式，每年复查血压");
+        update($f);
+end
+
+rule "HTN-002: 高血压前期"
+    no-loop true
+    salience 85
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, diastolicBp != null,
+            (systolicBp >= 120 && systolicBp <= 139) || (diastolicBp >= 80 && diastolicBp <= 89),
+            riskLevel == null,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.HYPERTENSION
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.HYPERTENSION);
+        $f.setRiskLevel(RiskLevel.LOW);
+        $f.setRiskScore(1.5);
+        $f.setAssessmentDetail("血压正常高值（收缩压120-139mmHg或舒张压80-89mmHg），属高血压前期。");
+        $f.addRecommendation("加强生活方式干预，减少钠盐摄入");
+        $f.addRecommendation("每季度复查血压");
+        update($f);
+end
+
+rule "HTN-003: 1级高血压"
+    no-loop true
+    salience 90
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, diastolicBp != null,
+            (systolicBp >= 140 && systolicBp <= 159) || (diastolicBp >= 90 && diastolicBp <= 99),
+            riskLevel == null || riskLevel == RiskLevel.LOW,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.HYPERTENSION
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.HYPERTENSION);
+        $f.setRiskLevel(RiskLevel.MEDIUM);
+        $f.setRiskScore(2.0);
+        $f.setAssessmentDetail("1级高血压（收缩压140-159mmHg或舒张压90-99mmHg）。");
+        $f.addRecommendation("生活方式干预，限盐（每日<6g）");
+        $f.addRecommendation("每月监测血压，必要时启动药物治疗");
+        update($f);
+end
+
+rule "HTN-004: 2级高血压"
+    no-loop true
+    salience 80
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, diastolicBp != null,
+            (systolicBp >= 160 && systolicBp <= 179) || (diastolicBp >= 100 && diastolicBp <= 109),
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.HYPERTENSION
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.HYPERTENSION);
+        $f.setRiskLevel(RiskLevel.HIGH);
+        $f.setRiskScore(3.0);
+        $f.setAssessmentDetail("2级高血压（收缩压160-179mmHg或舒张压100-109mmHg）。");
+        $f.addRecommendation("立即启动降压药物治疗");
+        $f.addRecommendation("每周监测血压，筛查靶器官损害（尿蛋白、肌酐）");
+        update($f);
+end
+
+rule "HTN-005: 3级高血压（危急）"
+    no-loop true
+    salience 70
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, diastolicBp != null,
+            systolicBp >= 180 || diastolicBp >= 110,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.HYPERTENSION
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.HYPERTENSION);
+        $f.setRiskLevel(RiskLevel.CRITICAL);
+        $f.setRiskScore(4.0);
+        $f.setAssessmentDetail("3级高血压（收缩压≥180mmHg或舒张压≥110mmHg），属高血压急症！");
+        $f.addRecommendation("紧急转诊心内科，立即药物降压");
+        $f.addRecommendation("完善靶器官损害评估（肌酐、尿蛋白、心电图）");
+        update($f);
+end
+
+rule "HTN-006: 高血压合并肾损伤"
+    no-loop true
+    salience 60
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, systolicBp >= 140,
+            creatinine != null, creatinine > 104,
+            assessedDiseaseType == DiseaseType.HYPERTENSION
+        )
+    then
+        $f.addRecommendation("合并肌酐升高：高血压肾损伤风险，建议肾内科会诊");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end
+
+rule "HTN-007: 高血压合并血脂异常"
+    no-loop true
+    salience 55
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, systolicBp >= 140,
+            ldlCholesterol != null, ldlCholesterol >= 3.4,
+            assessedDiseaseType == DiseaseType.HYPERTENSION
+        )
+    then
+        $f.addRecommendation("合并LDL-C≥3.4mmol/L：心血管事件高风险，建议启动他汀类降脂");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end
+
+rule "HTN-008: 高血压+低钾（降压药安全）"
+    no-loop true
+    salience 50
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, systolicBp >= 140,
+            potassium != null, potassium < 3.5,
+            assessedDiseaseType == DiseaseType.HYPERTENSION
+        )
+    then
+        $f.addRecommendation("血钾<3.5mmol/L：注意降压药（噻嗪类利尿剂）导致低钾风险，调整用药方案");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end

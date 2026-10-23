@@ -1,0 +1,16 @@
+package com.medical.agent.common.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PaperCasePatientInfoDTO {
+    private String name;
+    private String gender;
+    private Integer age;
+}

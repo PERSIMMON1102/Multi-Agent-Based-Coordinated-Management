@@ -1,0 +1,9 @@
+[
+  {"key":"encounter-type-ambulatory","system":"http://terminology.hl7.org/CodeSystem/encounter-type","code":"AMB","display":"ambulatory"},
+  {"key":"condition-clinical-active","system":"http://terminology.hl7.org/CodeSystem/condition-clinical","code":"active","display":"Active"},
+  {"key":"condition-verification-confirmed","system":"http://terminology.hl7.org/CodeSystem/condition-ver-status","code":"confirmed","display":"Confirmed"},
+  {"key":"condition-verification-provisional","system":"http://terminology.hl7.org/CodeSystem/condition-ver-status","code":"provisional","display":"Provisional"},
+  {"key":"condition-category-encounter-diagnosis","system":"http://terminology.hl7.org/CodeSystem/condition-category","code":"encounter-diagnosis","display":"Encounter Diagnosis"},
+  {"key":"document-category-clinical-note","system":"http://terminology.hl7.org/CodeSystem/media-category","code":"clinical-note","display":"Clinical Note"},
+  {"key":"document-type-medical-record","system":"http://loinc.org","code":"11506-3","display":"Medical records"}
+]

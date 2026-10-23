@@ -1,0 +1,18 @@
+{
+  "name": "cdm-medplum-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Medplum MCP sidecar for the chronic disease management platform",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node cdm-bridge.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "express": "^4.21.2",
+    "zod": "^3.24.1"
+  }
+}

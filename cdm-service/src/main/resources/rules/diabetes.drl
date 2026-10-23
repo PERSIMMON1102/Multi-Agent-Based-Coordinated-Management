@@ -1,0 +1,137 @@
+package com.medical.agent.rules.diabetes;
+
+import com.medical.agent.common.fact.PatientHealthFact;
+import com.medical.agent.common.enums.RiskLevel;
+import com.medical.agent.common.enums.DiseaseType;
+
+rule "DM-001: 血糖控制达标"
+    no-loop true
+    salience 100
+    when
+        $f : PatientHealthFact(
+            hba1c != null, hba1c < 7.0,
+            fastingGlucose != null, fastingGlucose < 6.1,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.DIABETES
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.DIABETES);
+        $f.setRiskLevel(RiskLevel.LOW);
+        $f.setRiskScore(1.0);
+        $f.setAssessmentDetail("血糖控制达标（HbA1c<7%，空腹血糖<6.1mmol/L）。");
+        $f.addRecommendation("维持当前治疗方案，每季度复查HbA1c");
+        $f.addRecommendation("每年筛查糖尿病并发症（眼底、肾功能、足部）");
+        update($f);
+end
+
+rule "DM-002: 血糖控制一般"
+    no-loop true
+    salience 90
+    when
+        $f : PatientHealthFact(
+            hba1c != null, hba1c >= 7.0, hba1c <= 9.0,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.DIABETES
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.DIABETES);
+        $f.setRiskLevel(RiskLevel.MEDIUM);
+        $f.setRiskScore(2.0);
+        $f.setAssessmentDetail("血糖控制一般（HbA1c 7%-9%），需要调整治疗方案。");
+        $f.addRecommendation("调整降糖药物方案，考虑联合用药");
+        $f.addRecommendation("每月复查空腹血糖，3个月复查HbA1c");
+        update($f);
+end
+
+rule "DM-003: 血糖控制不佳"
+    no-loop true
+    salience 80
+    when
+        $f : PatientHealthFact(
+            hba1c != null, hba1c > 9.0,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.DIABETES
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.DIABETES);
+        $f.setRiskLevel(RiskLevel.HIGH);
+        $f.setRiskScore(3.0);
+        $f.setAssessmentDetail("血糖控制不佳（HbA1c>9%），并发症风险显著升高。");
+        $f.addRecommendation("转诊内分泌科，考虑胰岛素治疗");
+        $f.addRecommendation("每周监测血糖谱，每月复诊");
+        update($f);
+end
+
+rule "DM-004: 空腹血糖危急"
+    no-loop true
+    salience 70
+    when
+        $f : PatientHealthFact(
+            fastingGlucose != null, fastingGlucose > 11.0,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.DIABETES
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.DIABETES);
+        $f.setRiskLevel(RiskLevel.CRITICAL);
+        $f.setRiskScore(4.0);
+        $f.setAssessmentDetail("空腹血糖严重升高（>11.0mmol/L），存在酮症酸中毒风险！");
+        $f.addRecommendation("紧急转诊，排查糖尿病酮症酸中毒（DKA）");
+        $f.addRecommendation("立即启动胰岛素强化治疗");
+        update($f);
+end
+
+rule "DM-005: 糖尿病肾损伤（尿蛋白阳性）"
+    no-loop true
+    salience 65
+    when
+        $f : PatientHealthFact(
+            fastingGlucose != null, fastingGlucose >= 7.0,
+            urineProtein != null, urineProtein != "NEGATIVE",
+            assessedDiseaseType == DiseaseType.DIABETES
+        )
+    then
+        $f.addRecommendation("尿蛋白阳性：糖尿病肾病风险，建议肾内科会诊");
+        $f.addRecommendation("优先使用ACEI/ARB类降压药保护肾功能");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end
+
+rule "DM-006: 糖尿病合并尿糖阳性"
+    no-loop true
+    salience 63
+    when
+        $f : PatientHealthFact(
+            urineGlucose != null, urineGlucose != "NEGATIVE",
+            assessedDiseaseType == DiseaseType.DIABETES
+        )
+    then
+        $f.addRecommendation("尿糖阳性：血糖控制不佳的表现，需强化降糖方案");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end
+
+rule "DM-007: 糖尿病合并心血管风险"
+    no-loop true
+    salience 60
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, systolicBp >= 140,
+            ldlCholesterol != null, ldlCholesterol >= 3.4,
+            assessedDiseaseType == DiseaseType.DIABETES
+        )
+    then
+        $f.addRecommendation("合并高血压+LDL-C升高：心血管事件高风险，强化降压降脂");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end
+
+rule "DM-008: 糖尿病合并肌酐升高"
+    no-loop true
+    salience 55
+    when
+        $f : PatientHealthFact(
+            creatinine != null, creatinine > 104,
+            assessedDiseaseType == DiseaseType.DIABETES
+        )
+    then
+        $f.addRecommendation("肌酐升高：糖尿病肾功能受损，需肾内科评估eGFR分期");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end

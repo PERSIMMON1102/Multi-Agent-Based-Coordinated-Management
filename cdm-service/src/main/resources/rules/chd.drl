@@ -1,0 +1,122 @@
+package com.medical.agent.rules.chd;
+
+import com.medical.agent.common.fact.PatientHealthFact;
+import com.medical.agent.common.enums.RiskLevel;
+import com.medical.agent.common.enums.DiseaseType;
+
+rule "CHD-001: 低风险 - 血脂血压正常"
+    no-loop true
+    salience 100
+    when
+        $f : PatientHealthFact(
+            ldlCholesterol != null, ldlCholesterol < 3.4,
+            totalCholesterol != null, totalCholesterol < 5.2,
+            systolicBp != null, systolicBp < 140,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.CHD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.CHD);
+        $f.setRiskLevel(RiskLevel.LOW);
+        $f.setRiskScore(1.0);
+        $f.setAssessmentDetail("冠心病低风险：LDL-C<3.4mmol/L，总胆固醇<5.2mmol/L，血压<140mmHg。");
+        $f.addRecommendation("维持当前治疗方案，每6个月复查血脂");
+        $f.addRecommendation("保持适度有氧运动");
+        update($f);
+end
+
+rule "CHD-002: 中风险 - 血脂边缘升高"
+    no-loop true
+    salience 90
+    when
+        $f : PatientHealthFact(
+            ldlCholesterol != null, ldlCholesterol >= 3.4, ldlCholesterol < 4.1,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.CHD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.CHD);
+        $f.setRiskLevel(RiskLevel.MEDIUM);
+        $f.setRiskScore(2.0);
+        $f.setAssessmentDetail("冠心病中风险：LDL-C边缘升高（3.4-4.1mmol/L）。");
+        $f.addRecommendation("启动或调整他汀类降脂治疗");
+        $f.addRecommendation("每3个月复查血脂，控制LDL-C<1.8mmol/L");
+        update($f);
+end
+
+rule "CHD-003: 高风险 - 血脂明显异常"
+    no-loop true
+    salience 80
+    when
+        $f : PatientHealthFact(
+            ldlCholesterol != null, ldlCholesterol >= 4.1,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.CHD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.CHD);
+        $f.setRiskLevel(RiskLevel.HIGH);
+        $f.setRiskScore(3.0);
+        $f.setAssessmentDetail("冠心病高风险：LDL-C≥4.1mmol/L，心血管事件风险显著。");
+        $f.addRecommendation("强化他汀治疗，必要时联合依折麦布");
+        $f.addRecommendation("转诊心内科评估");
+        update($f);
+end
+
+rule "CHD-004: 心肌损伤标志物升高"
+    no-loop true
+    salience 75
+    when
+        $f : PatientHealthFact(
+            ck != null, ck > 200,
+            assessedDiseaseType == null || assessedDiseaseType == DiseaseType.CHD
+        )
+    then
+        $f.setAssessedDiseaseType(DiseaseType.CHD);
+        $f.setRiskLevel(RiskLevel.CRITICAL);
+        $f.setRiskScore(4.0);
+        $f.setAssessmentDetail("肌酸激酶（CK）>200U/L，心肌损伤可能！");
+        $f.addRecommendation("紧急排查急性心肌梗死，急查肌钙蛋白、心电图");
+        $f.addRecommendation("立即转诊心内科/胸痛中心");
+        update($f);
+end
+
+rule "CHD-005: 冠心病合并高甘油三酯"
+    no-loop true
+    salience 65
+    when
+        $f : PatientHealthFact(
+            triglyceride != null, triglyceride >= 2.3,
+            assessedDiseaseType == DiseaseType.CHD
+        )
+    then
+        $f.addRecommendation("甘油三酯≥2.3mmol/L：心血管残余风险，考虑加用贝特类降脂药");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end
+
+rule "CHD-006: 冠心病合并低HDL"
+    no-loop true
+    salience 60
+    when
+        $f : PatientHealthFact(
+            hdlCholesterol != null, hdlCholesterol < 1.0,
+            assessedDiseaseType == DiseaseType.CHD
+        )
+    then
+        $f.addRecommendation("HDL-C<1.0mmol/L：保护性脂蛋白不足，强化运动和饮食干预");
+        $f.setRiskScore($f.getRiskScore() + 0.3);
+        update($f);
+end
+
+rule "CHD-007: 冠心病合并高血压+高血糖"
+    no-loop true
+    salience 55
+    when
+        $f : PatientHealthFact(
+            systolicBp != null, systolicBp >= 140,
+            fastingGlucose != null, fastingGlucose >= 7.0,
+            assessedDiseaseType == DiseaseType.CHD
+        )
+    then
+        $f.addRecommendation("合并高血压+高血糖：多重危险因素叠加，综合干预降压降糖降脂");
+        $f.setRiskScore($f.getRiskScore() + 0.5);
+        update($f);
+end
